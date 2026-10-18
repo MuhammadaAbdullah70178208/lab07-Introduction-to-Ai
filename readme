@@ -1,0 +1,74 @@
+Convolutional Neural Network (CNN) Step-by-Step WalkthroughAn end-to-end mathematical and code walkthrough of a foundational Convolutional Neural Network (CNN) pipeline on a $5 \times 5$ grayscale image.This repository demonstrates every stage of standard image classification—from raw pixel grids to final class probabilities—with exact forward-pass numerical steps.📌 Architecture Overview[Input Image (5x5)]
+        │
+        ▼
+[Convolution (3x3 Kernel, Stride 1)]
+        │
+        ▼
+[ReLU Activation Function]
+        │
+        ▼
+[Max Pooling (2x2 Window, Stride 1)]
+        │
+        ▼
+[Flatten Layer (1D Vector)]
+        │
+        ▼
+[Fully Connected Layer (3 Classes)]
+        │
+        ▼
+[Softmax Classification Output]
+🧮 Step-by-Step Numerical Walkthrough1. Input ImageComputers view images as matrices of numeric pixel intensities (0 to 255):$$X = \begin{bmatrix} 3 & 1 & 0 & 2 & 1 \\ 2 & 0 & 1 & 3 & 0 \\ 4 & 1 & 0 & 1 & 2 \\ 1 & 3 & 2 & 0 & 1 \\ 0 & 2 & 1 & 4 & 2 \end{bmatrix}$$2. Convolution LayerA $3 \times 3$ vertical edge filter slides across the image (stride $= 1$, padding $= 0$):$$K = \begin{bmatrix} 1 & 0 & -1 \\ 1 & 0 & -1 \\ 1 & 0 & -1 \end{bmatrix}$$Output Dimensions: $\text{Height} = 5 - 3 + 1 = 3$, $\text{Width} = 5 - 3 + 1 = 3$Resulting Feature Map:$$\text{Feature Map} = \begin{bmatrix} 8 & -4 & -2 \\ 4 & 0 & 0 \\ 2 & 1 & -2 \end{bmatrix}$$3. ReLU ActivationApplies non-linearity: $f(x) = \max(0, x)$. Negative values are replaced with $0$:$$\text{ReLU Output} = \begin{bmatrix} 8 & 0 & 0 \\ 4 & 0 & 0 \\ 2 & 1 & 0 \end{bmatrix}$$4. Max PoolingA $2 \times 2$ window slides across the activation map (stride $= 1$), retaining only maximum values:$$\text{Pooled Output} = \begin{bmatrix} \max(8, 0, 4, 0) & \max(0, 0, 0, 0) \\ \max(4, 0, 2, 1) & \max(0, 0, 1, 0) \end{bmatrix} = \begin{bmatrix} 8 & 0 \\ 4 & 1 \end{bmatrix}$$5. Flatten + Fully Connected LayerThe $2 \times 2$ grid is flattened into a 1D vector:$$\vec{x} = [8, 0, 4, 1]$$Using pre-defined class weights, we calculate logits ($z = \sum w_i x_i$):Cat: $[0.3, 0.1, 0.2, 0.1] \cdot [8, 0, 4, 1]^T = 2.4 + 0 + 0.8 + 0.1 = \mathbf{3.3}$Dog: $[0.1, 0.2, 0.1, 0.3] \cdot [8, 0, 4, 1]^T = 0.8 + 0 + 0.4 + 0.3 = \mathbf{1.5}$Bird: $[0.0, 0.4, 0.1, 0.2] \cdot [8, 0, 4, 1]^T = 0 + 0 + 0.4 + 0.2 = \mathbf{0.6}$6. Softmax OutputLogits are converted into normalized probabilities:$$P(z_i) = \frac{e^{z_i}}{\sum_{j} e^{z_j}}$$$\sum e^z = e^{3.3} + e^{1.5} + e^{0.6} \approx 27.11 + 4.48 + 1.82 = 33.41$Cat: $\frac{27.11}{33.41} \approx \mathbf{81\%}$Dog: $\frac{4.48}{33.41} \approx \mathbf{13\%}$Bird: $\frac{1.82}{33.41} \approx \mathbf{5\%}$Final Prediction: Cat (81%)🚀 Running the CodePure NumPy Implementation (No PyTorch required)import numpy as np
+
+ 1. Input Image
+image = np.array([
+    [3, 1, 0, 2, 1],
+    [2, 0, 1, 3, 0],
+    [4, 1, 0, 1, 2],
+    [1, 3, 2, 0, 1],
+    [0, 2, 1, 4, 2]
+], dtype=np.float32)
+
+ 2. Convolution (3x3 Kernel)
+kernel = np.array([
+    [1,  0, -1],
+    [1,  0, -1],
+    [1,  0, -1]
+], dtype=np.float32)
+
+h_out, w_out = image.shape[0] - 3 + 1, image.shape[1] - 3 + 1
+feature_map = np.zeros((h_out, w_out), dtype=np.float32)
+
+for r in range(h_out):
+    for c in range(w_out):
+        feature_map[r, c] = np.sum(image[r:r+3, c:c+3] * kernel)
+
+ 3. ReLU Activation
+relu_out = np.maximum(0, feature_map)
+
+ 4. Max Pooling (2x2)
+pool_h, pool_w = relu_out.shape[0] - 2 + 1, relu_out.shape[1] - 2 + 1
+pooled = np.zeros((pool_h, pool_w), dtype=np.float32)
+
+for r in range(pool_h):
+    for c in range(pool_w):
+        pooled[r, c] = np.max(relu_out[r:r+2, c:c+2])
+
+ 5. Flatten & Linear Layer
+flattened = pooled.flatten()
+weights = np.array([
+    [0.3, 0.1, 0.2, 0.1],  # Cat
+    [0.1, 0.2, 0.1, 0.3],  # Dog
+    [0.0, 0.4, 0.1, 0.2]   # Bird
+], dtype=np.float32)
+
+logits = np.dot(weights, flattened)
+
+ 6. Softmax
+exp_z = np.exp(logits)
+probs = exp_z / np.sum(exp_z)
+
+classes = ["Cat", "Dog", "Bird"]
+print("Predictions:")
+for name, p in zip(classes, probs):
+    print(f"  {name}: {p * 100:.1f}%")
+📄 LicenseThis project is open-source and available under the MIT License.
